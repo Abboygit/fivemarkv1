@@ -1,0 +1,11 @@
+# Secrets aur kachra — git me kabhi nahi jayega
+.env
+.env.*
+!.env.example
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.log
+server.log
+runtime/

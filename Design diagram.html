@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Five Mark V1 — Poora Design Diagram</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: Inter, 'Segoe UI', Arial, sans-serif; }
+  body { background: #030303; color: #f7f7f7; padding: 20px; }
+  h1 { font-size: 24px; font-weight: 800; } h1 span { color: #8b5cf6; }
+  .sub { color: #8a8a8a; font-size: 13px; margin: 4px 0 18px; }
+  .flow { display: flex; flex-direction: column; gap: 0; max-width: 760px; }
+  .box { background: rgba(31,31,31,.7); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 14px 16px; }
+  .box h2 { font-size: 15px; margin-bottom: 6px; }
+  .box p { font-size: 13px; color: #c9c9c9; line-height: 1.6; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 10px; border-radius: 20px; margin-bottom: 8px; }
+  .lock { background: rgba(34,197,94,.12); color: #22c55e; }
+  .n1 h2 { color: #8b5cf6; } .n2 h2 { color: #0099ff; } .n3 h2 { color: #22c55e; } .n4 h2 { color: #f5b301; }
+  .arrow { text-align: center; font-size: 22px; color: #8b5cf6; line-height: 1.4; font-weight: 800; }
+  .arrow small { display: block; font-size: 11px; color: #8a8a8a; font-weight: 400; }
+  .loop { border: 1px dashed rgba(139,92,246,.5); border-radius: 12px; padding: 4px 14px 14px; }
+  .foot { margin-top: 16px; color: #6a6a72; font-size: 12px; }
+  b.g { color: #22c55e; } b.p { color: #8b5cf6; } b.r { color: #ef4444; }
+</style>
+</head>
+<body>
+  <h1>Five Mark V1 <span>— Poora Design, Ek Tasveer Me</span></h1>
+  <p class="sub">BTCUSDT • 1m se 1d • Paper only • Design phase LOCKED (29 Sep 2026)</p>
+  <div class="flow">
+    <div class="box n1">
+      <span class="tag lock">LOCKED ✅</span>
+      <h2>① MARKET DATA — Binance se candles</h2>
+      <p>Binance Futures public API (key nahi) → <b class="p">BTCUSDT</b> → 12 timeframes (1m…1d) → 251 candles each → quality check → <b>sirf BAND candle</b> aage jayegi, chalti candle ⛔</p>
+    </div>
+    <div class="arrow">▼<small>band candles</small></div>
+    <div class="box n2">
+      <span class="tag lock">LOCKED ✅</span>
+      <h2>② SIGNAL ENGINE — HTF → LTF + Seekhna</h2>
+      <p><b class="p">HTF (1d/4h/1h)</b> rukh batayega (UP/DOWN/WAIT) → <b>MTF (15m/30m)</b> confirm → <b class="p">LTF (5m/3m/1m)</b> entry sirf HTF wali side: sweep → tez candle → FVG/OB wapsi → RR ≥ 2.5. Har result copy me → 30 trades ke baad mashwara, faisla human ka.</p>
+    </div>
+    <div class="arrow">▼<small>▲ BUY / ▼ SELL + stop/target</small></div>
+    <div class="box n3">
+      <span class="tag lock">LOCKED ✅</span>
+      <h2>③ PAPER TRADING — $10,000 nakli</h2>
+      <p>Agli candle open par entry → 1% risk → fee + slippage kaat kar → target/stop/time exit (stop-first) → max 5 open → har trade copy me. <b class="r">Live paisa ZERO.</b></p>
+    </div>
+    <div class="arrow">▼<small>P&L + trades + seekh</small></div>
+    <div class="box n4">
+      <span class="tag lock">LOCKED ✅</span>
+      <h2>④ DASHBOARD — DeepCharts style (#030303 + #8b5cf6 + #22c55e)</h2>
+      <p>Top bar (price + TF buttons) → <b>engine status patti</b> (kya kar raha hai) → bada X-ray chart (▲▼ + stop/target lakeer, live drawing) → side seedhi + 12 TF map → neeche P&L + seekhne wala box. 3-sec refresh.</p>
+    </div>
+    <div class="arrow">↺<small>seekh wapas engine me</small></div>
+    <div class="loop">
+      <div class="box" style="border:none;background:transparent">
+        <h2 style="color:#8b5cf6">⑤ SEEKHNE KA LOOP (khud seekhega)</h2>
+        <p>Copy → ginti (win-rate, avg R) → jeetne wale ka confidence <b class="g">↑</b>, haarne wale ka <b class="r">↓</b> → dashboard par mashwara → <b>TUM lock/unlock karoge</b> → engine naya rukh layega. Paper only, 30 trades se pehle koi faisla nahi.</p>
+      </div>
+    </div>
+  </div>
+  <p class="foot">MOCKUP-DIAGRAM — sirf dekhne ke liye. Files: Five mark v1 folder (4 design .md + mockup.html). Screenshot le sakte ho (Win+Shift+S).</p>
+</body>
+</html>
