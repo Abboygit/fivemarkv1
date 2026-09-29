@@ -6,7 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from engine.signal import Signal
 from market.binance import Candle
-from paper.engine import Engine
+from paper.journal import Engine
 
 TF = 5 * 60 * 1000
 

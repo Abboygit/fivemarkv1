@@ -124,6 +124,13 @@ def htf_bias(candles: list[Candle], index: int) -> str:
         return "UP"
     if dn and pd != "discount":
         return "DOWN"
+    # NARM GATE (backtest #1 ka seekh): structure saaf na ho to aakhri 20 close ka rujhan dekho
+    tail = candles[max(0, index - 20) : index + 1]
+    if len(tail) >= 10:
+        if tail[-1].close > tail[0].close * 1.002 and pd != "premium":
+            return "UP"
+        if tail[-1].close < tail[0].close * 0.998 and pd != "discount":
+            return "DOWN"
     return "WAIT"
 
 

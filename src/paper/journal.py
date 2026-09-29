@@ -16,6 +16,7 @@ FEE_RATE = 0.0004
 SLIPPAGE_BPS = 1.0
 MAX_BARS = 60
 MAX_OPEN = 5
+MAX_NOTIONAL_X = 2.0  # position itni badi nahi ke fee hi kha jaye (backtest #1 ka seekh)
 
 
 def _slip(price: float, side: str) -> float:
@@ -91,6 +92,9 @@ class Engine:
             if dist <= 0:
                 continue  # ganda geometry — crash nahi, skip + note
             qty = risk_cash / dist
+            if qty * entry > MAX_NOTIONAL_X * self.equity:
+                qty = (MAX_NOTIONAL_X * self.equity) / entry  # fee se bachao: badi position choti karo
+                risk_cash = qty * dist
             self._n += 1
             self.open_trades.append(
                 Trade(

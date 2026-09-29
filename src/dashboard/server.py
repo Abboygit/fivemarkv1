@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from engine.signal import generate_signal, htf_bias  # noqa: E402
 from market.binance import fetch_klines  # noqa: E402
 from market.validator import validate_candles  # noqa: E402
-from paper.engine import Engine  # noqa: E402
+from paper.journal import Engine  # noqa: E402
 
 SYMBOL = "BTCUSDT"
 LTF, HTF = "5m", "1h"
