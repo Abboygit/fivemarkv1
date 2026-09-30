@@ -158,6 +158,7 @@ body{background:#030303;color:#f7f7f7;padding:12px}
 <span id="rinfo" style="color:#8a8a8a"></span></div></div></div>
 <div class="grid"><div class="card"><h3>BIG TRADES <button id="f25" style="background:#8b5cf6;color:#fff;border:none;padding:2px 10px;border-radius:10px;font-size:11px">$25k+</button> <button id="f100" style="background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.15);padding:2px 10px;border-radius:10px;font-size:11px">$100k+</button></h3><div id="pr" style="font-size:12px;line-height:1.8"></div></div></div>
 <div class="grid"><div class="card"><h3>DOM — ASLI LIQUIDITY (bids/asks)</h3><div id="dom" style="font-size:12px;line-height:1.8"></div></div></div>
+<div class="grid"><div class="card"><h3>LINKED TFs — click to jump</h3><div id="strip" style="display:flex;gap:8px"></div></div></div>
 <div class="grid"><div class="card"><h3>LOG (taza pehle)</h3><div class="log" id="l">…</div></div></div>
 <p class="note">Live dashboard — 3-sec refresh. Design: Dashboard design.md (LOCKED).</p>
 <script>
@@ -314,7 +315,23 @@ window.__D.price=nk.c;
 const pe=document.getElementById('p');if(pe)pe.textContent=nk.c;
 requestDraw();}catch(e){}};
 ws.onerror=function(){};}catch(e){}}
-startWS('5m');setInterval(tick,3000);setInterval(t,15000);t();
+startWS('5m');async function loadStrip(){const tfs=['15m','1h','4h','1d'];let h='';
+for(const tf of tfs){try{const r=await (await fetch('/api/history?tf='+tf,{cache:'no-store'})).json();
+if(!r.ok||!r.candles.length)continue;
+const cs=r.candles.slice(-120),id='sp_'+tf;
+h+='<div style="flex:1;cursor:pointer" data-jump="'+tf+'"><div style="font-size:11px;color:#8a8a8a">'+tf.toUpperCase()+' '+cs[cs.length-1].c+'</div><canvas id="'+id+'" style="width:100%;height:64px;display:block"></canvas></div>';
+setTimeout(()=>{const cv=document.getElementById(id);if(!cv)return;
+const DPR=window.devicePixelRatio||1,W=cv.clientWidth||200,H=64;
+cv.width=W*DPR;cv.height=H*DPR;const ctx=cv.getContext('2d');ctx.setTransform(DPR,0,0,DPR,0,0);
+let hi=-1e18,lo=1e18;cs.forEach(c=>{hi=Math.max(hi,c.h);lo=Math.min(lo,c.l);});
+const pad=(hi-lo)*0.1||1;hi+=pad;lo-=pad;
+const X=i=>2+i*(W-4)/cs.length,Y=p=>H-4-(p-lo)/(hi-lo)*(H-8);
+const up=cs[cs.length-1].c>=cs[0].c;ctx.strokeStyle=up?'#22c55e':'#ef4444';ctx.lineWidth=1.5;ctx.beginPath();
+cs.forEach((c,i)=>{const x=X(i),y=Y(c.c);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();
+ctx.fillStyle=up?'#22c55e':'#ef4444';ctx.beginPath();ctx.arc(X(cs.length-1),Y(cs[cs.length-1].c),2.5,0,7);ctx.fill();
+},0);}catch(e){}}
+document.getElementById('strip').innerHTML=h;document.querySelectorAll('#strip [data-jump]').forEach(function(el){el.onclick=function(){setTF(el.dataset.jump);};});}
+loadStrip();setInterval(loadStrip,120000);setInterval(tick,3000);setInterval(t,15000);t();
 let RP={on:false,i:0,data:[],timer:null};
 document.getElementById('rplay').onclick=async()=>{
 if(RP.on){clearInterval(RP.timer);RP.on=false;document.getElementById('rplay').textContent='Play';return;}
