@@ -150,7 +150,7 @@ document.getElementById('g').textContent=d.signal?(d.signal.side+' '+d.signal.ev
 document.getElementById('w').textContent=d.paper.equity?('$'+d.paper.equity+' | '+d.paper.closed+' trades'):'…';
 document.getElementById('st').textContent=d.paper?('Trades '+d.paper.closed+' | Win '+d.paper.win_rate+'% | Avg R:R '+d.paper.avg_r):'…';
 document.getElementById('chh').textContent='CHART — '+(d.chart_tf||'5m')+' (LIVE)';document.getElementById('e').textContent='ENGINE: rukh '+d.bias+' | open '+((d.paper||{}).open||0)+' | '+(d.signal?('signal '+d.signal.side):'scan chal raha');
-document.getElementById('l').innerHTML=(d.log||[]).join('<br>');
+var esc=function(x){return String(x).split('&').join('&amp;').split('<').join('&lt;').split('>').join('&gt;')};document.getElementById('l').innerHTML=(d.log||[]).map(esc).join('<br>');
 let tfh='';['1m','3m','5m','15m','30m','1h','2h','4h','6h','8h','12h','1d'].forEach(k=>{const t=(d.timeframes||{})[k];
 tfh+='<div style="padding:5px;border-radius:6px;text-align:center;background:'+(t&&t.ok?'rgba(34,197,94,.12)':'rgba(239,68,68,.12)')+';color:'+(t&&t.ok?'#22c55e':'#ef4444')+'">'+k+'<br>'+(t?t.close:'…')+'</div>';});
 document.getElementById('tf').innerHTML=tfh;
@@ -264,4 +264,8 @@ PORT = 8091  # 8090 system ke aur software ne pakda hua hai
 if __name__ == "__main__":
     threading.Thread(target=loop, daemon=True).start()
     print(f"Dashboard: http://127.0.0.1:{PORT}", flush=True)
-    HTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    try:
+        HTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    except OSError:
+        print(f"PORT {PORT} busy hai - purana server band karo ya PORT badlo", flush=True)
+        raise SystemExit(1)
