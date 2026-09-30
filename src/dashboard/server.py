@@ -108,7 +108,7 @@ def loop() -> None:
 
 
 PAGE = """<!doctype html><html><head><meta charset="utf-8">
-<meta http-equiv="refresh" content="10">
+
 <title>Five Mark V1 — Live</title>
 <style>*{box-sizing:border-box;margin:0;padding:0;font-family:Inter,'Segoe UI',Arial,sans-serif}
 body{background:#030303;color:#f7f7f7;padding:12px}
