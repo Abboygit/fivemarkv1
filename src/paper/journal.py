@@ -123,6 +123,7 @@ class Engine:
 
     def summary(self) -> dict:
         wins = sum(1 for t in self.closed if t.pnl > 0)
+        rs = [t.r_multiple for t in self.closed]
         return {
             "equity": round(self.equity, 2),
             "realized": round(self.realized, 2),
@@ -130,4 +131,5 @@ class Engine:
             "closed": len(self.closed),
             "wins": wins,
             "win_rate": round(wins / len(self.closed) * 100, 1) if self.closed else 0.0,
+            "avg_r": round(sum(rs) / len(rs), 2) if rs else 0.0,
         }
