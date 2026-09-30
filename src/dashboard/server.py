@@ -25,6 +25,7 @@ TF_MS = {"1m": 60_000, "3m": 180_000, "5m": 300_000, "15m": 900_000, "30m": 1_80
          "1h": 3_600_000, "2h": 7_200_000, "4h": 14_400_000, "6h": 21_600_000,
          "8h": 28_800_000, "12h": 43_200_000, "1d": 86_400_000}
 REFRESH_SEC = 20
+CHART_TF = "5m"  # chart kis timeframe ka dikhega (button se badalta hai, signal hamesha 5m par)
 
 STATE: dict = {"updated_at": 0, "ok": False, "error": "", "symbol": SYMBOL,
                "price": 0.0, "bias": "WAIT", "signal": None, "paper": {},
@@ -41,6 +42,7 @@ def refresh_once() -> None:
     try:
         ltf = fetch_klines(SYMBOL, LTF, 120)[:-1]  # band only (signal wala)
         htf = fetch_klines(SYMBOL, HTF, 120)[:-1]
+        chart_candles = ltf if CHART_TF == LTF else (htf if CHART_TF == HTF else fetch_klines(SYMBOL, CHART_TF, 120)[:-1])
         for tf in ALL_TF:  # 12 TF live — signal wale dobara nahi, baki halka (10 candles)
             candles = ltf if tf == LTF else (htf if tf == HTF else fetch_klines(SYMBOL, tf, 11)[:-1])
             v = validate_candles(candles, TF_MS[tf])
@@ -87,7 +89,8 @@ def refresh_once() -> None:
         except Exception:
             pass
         STATE["candles"] = [{"t": c.time, "o": c.open, "h": c.high, "l": c.low, "c": c.close, "v": c.volume}
-                            for c in ltf[-60:]]  # chart ke liye aakhri 60 band candles
+                            for c in chart_candles[-60:]]  # chart TF ki aakhri 60 band candles
+        STATE["chart_tf"] = CHART_TF
         STATE["ok"] = True
         STATE["error"] = ""
         STATE["updated_at"] = int(time.time())
@@ -115,8 +118,8 @@ body{background:#030303;color:#f7f7f7;padding:12px}
 .grid{display:flex;gap:10px;margin-top:10px}.card{flex:1;background:#0b0b0d;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px}
 .card h3{color:#8a8a8a;font-size:11px;letter-spacing:2px;margin-bottom:8px}
 .big{font-size:20px;font-weight:800}.log{font-size:12px;color:#c9c9c9;line-height:1.7}
-.note{margin-top:8px;color:#6a6a72;font-size:12px}</style></head><body>
-<div class="bar"><span class="logo">FIVE MARK V1</span><span class="sym">BTCUSDT</span>
+.note{margin-top:8px;color:#6a6a72;font-size:12px}.tf{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:#a8a8a8;padding:3px 10px;border-radius:20px;font-size:12px;cursor:pointer}.tf.on{background:#8b5cf6;color:#fff;border-color:#8b5cf6;font-weight:700}</style></head><body>
+<div class="bar"><span class="logo">FIVE MARK V1</span><span class="sym">BTCUSDT</span><span class="tf" data-tf="1m" onclick="setTF('1m')">1m</span><span class="tf on" data-tf="5m" onclick="setTF('5m')">5m</span><span class="tf" data-tf="15m" onclick="setTF('15m')">15m</span><span class="tf" data-tf="1h" onclick="setTF('1h')">1h</span><span class="tf" data-tf="4h" onclick="setTF('4h')">4h</span><span class="tf" data-tf="1d" onclick="setTF('1d')">1d</span>
 <span class="pr" id="p">…</span><span class="st" id="s">…</span></div>
 <div class="eng" id="e">ENGINE: load ho raha hai…</div>
 <div class="grid">
@@ -127,7 +130,7 @@ body{background:#030303;color:#f7f7f7;padding:12px}
 </div>
 <div class="grid"><div class="card"><h3>12 TIMEFRAMES — LIVE (hara=OK)</h3><div id="tf" style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;font-size:12px"></div></div></div>
 <div class="grid"><div class="card"><h3>P&L CURVE (CUMULATIVE)</h3><svg id="eq" width="100%" height="120"></svg></div></div>
-<div class="grid"><div class="card"><h3>CHART — 5m BAND CANDLES (LIVE)</h3><svg id="ch" width="100%" height="230"></svg></div></div>
+<div class="grid"><div class="card"><h3 id="chh">CHART — 5m (LIVE)</h3><svg id="ch" width="100%" height="230"></svg></div></div>
 <div class="grid"><div class="card"><h3>REPLAY (practice, pichla data)</h3>
 <div style="font-size:13px;display:flex;gap:8px;align-items:center">
 <select id="rtf"><option>5m</option><option>15m</option><option>1h</option><option>4h</option><option>1d</option></select>
@@ -146,7 +149,7 @@ document.getElementById('b').textContent=d.bias||'…';
 document.getElementById('g').textContent=d.signal?(d.signal.side+' '+d.signal.event+' RR '+d.signal.rr):'koi entry nahi';
 document.getElementById('w').textContent=d.paper.equity?('$'+d.paper.equity+' | '+d.paper.closed+' trades'):'…';
 document.getElementById('st').textContent=d.paper?('Trades '+d.paper.closed+' | Win '+d.paper.win_rate+'% | Avg R:R '+d.paper.avg_r):'…';
-document.getElementById('e').textContent='ENGINE: rukh '+d.bias+' | open '+((d.paper||{}).open||0)+' | '+(d.signal?('signal '+d.signal.side):'scan chal raha');
+document.getElementById('chh').textContent='CHART — '+(d.chart_tf||'5m')+' (LIVE)';document.getElementById('e').textContent='ENGINE: rukh '+d.bias+' | open '+((d.paper||{}).open||0)+' | '+(d.signal?('signal '+d.signal.side):'scan chal raha');
 document.getElementById('l').innerHTML=(d.log||[]).join('<br>');
 let tfh='';['1m','3m','5m','15m','30m','1h','2h','4h','6h','8h','12h','1d'].forEach(k=>{const t=(d.timeframes||{})[k];
 tfh+='<div style="padding:5px;border-radius:6px;text-align:center;background:'+(t&&t.ok?'rgba(34,197,94,.12)':'rgba(239,68,68,.12)')+';color:'+(t&&t.ok?'#22c55e':'#ef4444')+'">'+k+'<br>'+(t?t.close:'…')+'</div>';});
@@ -185,7 +188,7 @@ s+='<line x1="0" y1="'+Y(g.target)+'" x2="'+W+'" y2="'+Y(g.target)+'" stroke="#2
 s+='<line x1="0" y1="'+Y(g.stop)+'" x2="'+W+'" y2="'+Y(g.stop)+'" stroke="#ef4444" stroke-dasharray="5,4"/>';
 s+='<circle cx="'+(W-14)+'" cy="'+Y(g.entry)+'" r="5" fill="'+(g.side==='long'?'#22c55e':'#ef4444')+'"/>';}
 svg.innerHTML=s;}
-setInterval(t,3000);t();
+async function setTF(tf){await fetch('/api/chart?tf='+tf);document.querySelectorAll('.tf').forEach(e=>e.classList.toggle('on',e.dataset.tf===tf));t();} setInterval(t,3000);t();
 let RP={on:false,i:0,data:[],timer:null};
 document.getElementById('rplay').onclick=async()=>{
 if(RP.on){clearInterval(RP.timer);RP.on=false;document.getElementById('rplay').textContent='Play';return;}
@@ -218,6 +221,16 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if self.path == "/api/state":
             self._json(STATE)
+        elif self.path.startswith("/api/chart"):
+            from urllib.parse import urlparse, parse_qs  # chart TF switch
+            global CHART_TF
+            tf = parse_qs(urlparse(self.path).query).get("tf", ["5m"])[0]
+            if tf not in ALL_TF:
+                self._json({"ok": False, "error": "galat timeframe"}, 400)
+                return
+            CHART_TF = tf
+            _note(f"chart TF: {tf}")
+            self._json({"ok": True, "chart_tf": CHART_TF})
         elif self.path.startswith("/api/history"):
             from urllib.parse import urlparse, parse_qs  # replay: file se pichli candles
             tf = parse_qs(urlparse(self.path).query).get("tf", ["5m"])[0]
