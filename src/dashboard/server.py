@@ -20,6 +20,8 @@ from paper.journal import Engine  # noqa: E402
 
 SYMBOL = "BTCUSDT"
 LTF, HTF = "5m", "1h"
+BIAS_TF = {"1m": "5m", "3m": "15m", "5m": "1h", "15m": "1h", "30m": "1h",
+           "1h": "4h", "2h": "4h", "4h": "1d", "6h": "1d", "8h": "1d", "12h": "1d", "1d": None}
 ALL_TF = ["1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d"]
 TF_MS = {"1m": 60_000, "3m": 180_000, "5m": 300_000, "15m": 900_000, "30m": 1_800_000,
          "1h": 3_600_000, "2h": 7_200_000, "4h": 14_400_000, "6h": 21_600_000,
@@ -94,6 +96,20 @@ def refresh_once() -> None:
         STATE["candles"] = [{"t": c.time, "o": c.open, "h": c.high, "l": c.low, "c": c.close, "v": c.volume}
                             for c in chart_candles[-60:]]  # chart TF ki aakhri 60 band candles
         STATE["chart_tf"] = CHART_TF
+        btf = BIAS_TF.get(CHART_TF)
+        bcs = {"5m": ltf, "1h": htf}.get(btf) if btf else None
+        if btf and bcs is None:
+            bcs = fetch_klines(SYMBOL, btf, 120)[:-1]
+        cbias = htf_bias(bcs, len(bcs) - 1) if bcs else "BOTH"
+        marks = []
+        for j in range(40, len(chart_candles)):
+            gs = generate_signal(chart_candles[: j + 1], j, bias=cbias)
+            if gs and len(marks) < 20:
+                marks.append({"k": j - (len(chart_candles) - 60), "side": gs.side,
+                              "entry": gs.entry, "zone_kind": gs.zone_kind,
+                              "zone_high": gs.zone_high, "zone_low": gs.zone_low})
+        STATE["chart_signals"] = [m for m in marks if m["k"] >= 0]
+        STATE["chart_bias"] = cbias
         STATE["ok"] = True
         STATE["error"] = ""
         STATE["updated_at"] = int(time.time())
@@ -181,12 +197,18 @@ if(d.signal){hi=Math.max(hi,d.signal.target);lo=Math.min(lo,d.signal.stop);}
 const pad=(hi-lo)*0.1||1;hi+=pad;lo-=pad;
 const X0=i=>10+i*(W-70)/cs.length, Y0=p=>H-30-(p-lo)/(hi-lo)*(H-50);
 let g='';for(let k=0;k<=4;k++){const py=10+k*(H-50)/4,pv=(hi-(hi-lo)*k/4).toFixed(1);
-g+='<line x1="10" y1="'+py+'" x2="'+(W-60)+'" y2="'+py+'" stroke="rgba(255,255,255,0.07)"/>';
+g+='<line x1="10" y1="'+py+'" x2="'+(W-60)+'" y2="'+py+'" stroke="rgba(255,255,255,0.09)" stroke-dasharray="2,4"/>';
 g+='<text x="'+(W-58)+'" y="'+(py+4)+'" fill="#8a8a8a" font-size="10">'+pv+'</text>';}
 const n0=cs.length,step0=Math.ceil(n0/6);
 for(let i=0;i<n0;i+=step0){const dt=new Date(cs[i].t);const hh=String(dt.getHours()).padStart(2,'0'),mm=String(dt.getMinutes()).padStart(2,'0');
 g+='<text x="'+X0(i)+'" y="'+(H-8)+'" fill="#8a8a8a" font-size="10">'+hh+':'+mm+'</text>';}
 const X=X0, Y=Y0;window.__MAP={lo:lo,hi:hi,W:W,H:H};
+const _lc=cs[cs.length-1],_ch=(_lc.c-_lc.o)>=0,_cc=_ch?'#22c55e':'#ef4444';
+g+='<text x="12" y="18" fill="#e6e6e6" font-size="12" font-weight="700">O '+_lc.o+' H '+_lc.h+' L '+_lc.l+' C '+_lc.c+'</text>';
+if(d.price){g+='<rect x="'+(W-58)+'" y="'+(Y(d.price)-10)+'" width="56" height="18" rx="3" fill="'+_cc+'"/>';g+='<text x="'+(W-56)+'" y="'+(Y(d.price)+3)+'" fill="#030303" font-size="11" font-weight="700">'+d.price+'</text>';}
+(d.chart_signals||[]).forEach(m=>{if(m.k<0||m.k>=cs.length)return;const mx=X(m.k),mc=m.side==='long'?'#22c55e':'#ef4444';
+g+='<polygon points="'+mx+','+(Y(m.entry)-14)+' '+(mx-5)+','+(Y(m.entry)-6)+' '+(mx+5)+','+(Y(m.entry)-6)+'" fill="'+mc+'"/>';});
+
 let s='';cs.forEach((c,i)=>{const up=c.c>=c.o,col=up?'#22c55e':'#ef4444',x=X(i),w=Math.max(2,(W-20)/cs.length-3);
 s+='<line x1="'+x+'" y1="'+Y(c.h)+'" x2="'+x+'" y2="'+Y(c.l)+'" stroke="'+col+'" stroke-width="1"/>';
 s+='<rect x="'+(x-w/2)+'" y="'+Y(Math.max(c.o,c.c))+'" width="'+w+'" height="'+Math.max(2,Math.abs(Y(c.o)-Y(c.c)))+'" fill="'+col+'"/>';
