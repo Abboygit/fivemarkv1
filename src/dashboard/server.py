@@ -195,7 +195,7 @@ s+='<line x1="0" y1="'+Y(g.target)+'" x2="'+W+'" y2="'+Y(g.target)+'" stroke="#2
 s+='<line x1="0" y1="'+Y(g.stop)+'" x2="'+W+'" y2="'+Y(g.stop)+'" stroke="#ef4444" stroke-dasharray="5,4"/>';
 s+='<circle cx="'+(W-14)+'" cy="'+Y(g.entry)+'" r="5" fill="'+(g.side==='long'?'#22c55e':'#ef4444')+'"/>';}
 if(d.price){s+='<line x1="0" y1="'+Y(d.price)+'" x2="'+W+'" y2="'+Y(d.price)+'" stroke="#f7f7f7" stroke-dasharray="2,3" opacity="0.7"/>';}s+='<line id="xhair" x1="-10" y1="-10" x2="-10" y2="-10" stroke="#8b5cf6" stroke-width="1" opacity="0.8"/>';s+='<line id="yhair" x1="-10" y1="-10" x2="-10" y2="-10" stroke="#8b5cf6" stroke-width="1" opacity="0.8"/>';svg.innerHTML=g+s;}var chEl=document.getElementById('ch');if(chEl&&!chEl.onmousemove){chEl.onmousemove=function(ev){var r=chEl.getBoundingClientRect();var mx=ev.clientX-r.left,my=ev.clientY-r.top;var xa=chEl.querySelector('#xhair'),ya=chEl.querySelector('#yhair');if(!xa||!ya)return;xa.setAttribute('x1',mx);xa.setAttribute('x2',mx);xa.setAttribute('y1',0);xa.setAttribute('y2',260);ya.setAttribute('x1',0);ya.setAttribute('x2',r.width);ya.setAttribute('y1',my);ya.setAttribute('y2',my);};}
-async function setTF(tf){await fetch('/api/chart?tf='+tf);document.querySelectorAll('.tf').forEach(e=>e.classList.toggle('on',e.dataset.tf===tf));t();} document.getElementById('f25').onclick=()=>{window.__minUSD=25000;document.getElementById('f25').style.background='#8b5cf6';document.getElementById('f100').style.background='rgba(255,255,255,.08)';t();};document.getElementById('f100').onclick=()=>{window.__minUSD=100000;document.getElementById('f100').style.background='#8b5cf6';document.getElementById('f25').style.background='rgba(255,255,255,.08)';t();};setInterval(t,3000);t();
+async function setTF(tf){window.__CHTF=tf;await fetch('/api/chart?tf='+tf);document.querySelectorAll('.tf').forEach(e=>e.classList.toggle('on',e.dataset.tf===tf));t();} document.getElementById('f25').onclick=()=>{window.__minUSD=25000;document.getElementById('f25').style.background='#8b5cf6';document.getElementById('f100').style.background='rgba(255,255,255,.08)';t();};document.getElementById('f100').onclick=()=>{window.__minUSD=100000;document.getElementById('f100').style.background='#8b5cf6';document.getElementById('f25').style.background='rgba(255,255,255,.08)';t();};window.__D=null;var _t0=t;t=function(){_t0();fetch('/api/state',{cache:'no-store'}).then(r=>r.json()).then(d=>{window.__D=d;});};async function tick(){try{const r=await (await fetch('/api/tick',{cache:'no-store'})).json();if(!r.ok||!window.__D||!window.__D.candles||!window.__D.candles.length)return;const cs=window.__D.candles.slice();let f=cs[cs.length-1];const tfm={'1m':1,'5m':5,'15m':15,'1h':60,'4h':240,'1d':1440};const tf=(window.__CHTF)||'5m',slot=Math.floor(r.t/(tfm[tf]*60000))*(tfm[tf]*60000);if(f.t===slot){f={t:f.t,o:f.o,h:Math.max(f.h,r.price),l:Math.min(f.l,r.price),c:r.price,v:f.v};}else{f={t:slot,o:f.c,h:r.price,l:r.price,c:r.price,v:0};cs.push(f);}window.__D.price=r.price;document.getElementById('p').textContent=r.price;drawChart({candles:cs.slice(-60),signal:window.__D.signal,price:r.price});}catch(e){}}setInterval(tick,3000);setInterval(t,15000);t();
 let RP={on:false,i:0,data:[],timer:null};
 document.getElementById('rplay').onclick=async()=>{
 if(RP.on){clearInterval(RP.timer);RP.on=false;document.getElementById('rplay').textContent='Play';return;}
@@ -238,6 +238,14 @@ class Handler(BaseHTTPRequestHandler):
             CHART_TF = tf
             _note(f"chart TF: {tf}")
             self._json({"ok": True, "chart_tf": CHART_TF})
+        elif self.path.startswith("/api/tick"):
+            try:
+                import requests as _rq2
+                q = _rq2.get("https://fapi.binance.com/fapi/v1/ticker/price",
+                             params={"symbol": SYMBOL}, timeout=5).json()
+                self._json({"ok": True, "price": float(q["price"]), "t": int(time.time() * 1000)})
+            except Exception as e:
+                self._json({"ok": False, "error": str(e)[:100]}, 500)
         elif self.path.startswith("/api/history"):
             from urllib.parse import urlparse, parse_qs  # replay: file se pichli candles
             tf = parse_qs(urlparse(self.path).query).get("tf", ["5m"])[0]
