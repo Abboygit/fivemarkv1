@@ -29,6 +29,11 @@ class Signal:
     event: str  # "fvg_retrace" | "ob_retrace"
     index: int
     confidence: float
+    zone_kind: str = ""  # "FVG" | "OB" (chart box ke liye)
+    zone_high: float = 0.0
+    zone_low: float = 0.0
+    sweep_price: float = 0.0  # sweep point (chart dot ke liye)
+    event_index: int = 0  # displacement wali candle (chart marker ke liye)
 
 
 def _overlaps(c: Candle, low: float, high: float) -> bool:
@@ -46,7 +51,7 @@ def _displacement(candles: list[Candle], i: int) -> str | None:
     if c.close > c.open:
         return "bullish"
     if c.close < c.open:
-        return "bearish"
+        return {"direction": "bearish", "price": highs[-1].price}
     return None
 
 
@@ -56,7 +61,7 @@ def _sweep(candles: list[Candle], i: int) -> str | None:
     lows = [s for s in swings if s.side == "low" and s.index < i]
     highs = [s for s in swings if s.side == "high" and s.index < i]
     if lows and c.low < lows[-1].price and c.close > lows[-1].price and (prev is None or prev.low >= lows[-1].price):
-        return "bullish"
+        return {"direction": "bullish", "price": lows[-1].price}
     if highs and c.high > highs[-1].price and c.close < highs[-1].price and (prev is None or prev.high <= highs[-1].price):
         return "bearish"
     return None
@@ -189,6 +194,8 @@ def generate_signal(candles: list[Candle], index: int, bias: str = "BOTH") -> Si
             side=side, entry=entry, stop=stop, target=target,
             rr=abs(target - entry) / dist, reason=reason,
             event=f"{zone['kind'].lower()}_retrace", index=index, confidence=round(conf, 2),
+            zone_kind=zone["kind"], zone_high=zone["high"], zone_low=zone["low"],
+            sweep_price=sweep["price"] if sweep else 0.0, event_index=ev,
         )
     return None
 
