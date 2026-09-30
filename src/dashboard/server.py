@@ -131,7 +131,7 @@ body{background:#030303;color:#f7f7f7;padding:12px}
 </div>
 <div class="grid"><div class="card"><h3>12 TIMEFRAMES — LIVE (hara=OK)</h3><div id="tf" style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;font-size:12px"></div></div></div>
 <div class="grid"><div class="card"><h3>P&L CURVE (CUMULATIVE)</h3><svg id="eq" width="100%" height="120"></svg></div></div>
-<div class="grid"><div class="card"><h3 id="chh">CHART — 5m (LIVE)</h3><svg id="ch" width="100%" height="230"></svg></div></div>
+<div class="grid"><div class="card"><h3 id="chh">CHART — 5m (LIVE)</h3><svg id="ch" width="100%" height="260" style="cursor:crosshair"></svg></div></div>
 <div class="grid"><div class="card"><h3>REPLAY (practice, pichla data)</h3>
 <div style="font-size:13px;display:flex;gap:8px;align-items:center">
 <select id="rtf"><option>5m</option><option>15m</option><option>1h</option><option>4h</option><option>1d</option></select>
@@ -177,7 +177,14 @@ const W=svg.clientWidth||700,H=230;svg.setAttribute('viewBox','0 0 '+W+' '+H);
 let hi=-1e18,lo=1e18,mv=0;cs.forEach(c=>{hi=Math.max(hi,c.h);lo=Math.min(lo,c.l);mv=Math.max(mv,c.v||0);});
 if(d.signal){hi=Math.max(hi,d.signal.target);lo=Math.min(lo,d.signal.stop);}
 const pad=(hi-lo)*0.1||1;hi+=pad;lo-=pad;
-const X=i=>10+i*(W-20)/cs.length, Y=p=>H-10-(p-lo)/(hi-lo)*(H-20);
+const X0=i=>10+i*(W-70)/cs.length, Y0=p=>H-30-(p-lo)/(hi-lo)*(H-50);
+let g='';for(let k=0;k<=4;k++){const py=10+k*(H-50)/4,pv=(hi-(hi-lo)*k/4).toFixed(1);
+g+='<line x1="10" y1="'+py+'" x2="'+(W-60)+'" y2="'+py+'" stroke="rgba(255,255,255,0.07)"/>';
+g+='<text x="'+(W-58)+'" y="'+(py+4)+'" fill="#8a8a8a" font-size="10">'+pv+'</text>';}
+const n0=cs.length,step0=Math.ceil(n0/6);
+for(let i=0;i<n0;i+=step0){const dt=new Date(cs[i].t);const hh=String(dt.getHours()).padStart(2,'0'),mm=String(dt.getMinutes()).padStart(2,'0');
+g+='<text x="'+X0(i)+'" y="'+(H-8)+'" fill="#8a8a8a" font-size="10">'+hh+':'+mm+'</text>';}
+const X=X0, Y=Y0;
 let s='';cs.forEach((c,i)=>{const up=c.c>=c.o,col=up?'#22c55e':'#ef4444',x=X(i),w=Math.max(2,(W-20)/cs.length-3);
 s+='<line x1="'+x+'" y1="'+Y(c.h)+'" x2="'+x+'" y2="'+Y(c.l)+'" stroke="'+col+'" stroke-width="1"/>';
 s+='<rect x="'+(x-w/2)+'" y="'+Y(Math.max(c.o,c.c))+'" width="'+w+'" height="'+Math.max(2,Math.abs(Y(c.o)-Y(c.c)))+'" fill="'+col+'"/>';
@@ -187,7 +194,7 @@ if(d.signal){const g=d.signal;
 s+='<line x1="0" y1="'+Y(g.target)+'" x2="'+W+'" y2="'+Y(g.target)+'" stroke="#22c55e" stroke-dasharray="5,4"/>';
 s+='<line x1="0" y1="'+Y(g.stop)+'" x2="'+W+'" y2="'+Y(g.stop)+'" stroke="#ef4444" stroke-dasharray="5,4"/>';
 s+='<circle cx="'+(W-14)+'" cy="'+Y(g.entry)+'" r="5" fill="'+(g.side==='long'?'#22c55e':'#ef4444')+'"/>';}
-if(d.price){s+='<line x1="0" y1="'+Y(d.price)+'" x2="'+W+'" y2="'+Y(d.price)+'" stroke="#f7f7f7" stroke-dasharray="2,3" opacity="0.7"/>';}svg.innerHTML=s;}
+if(d.price){s+='<line x1="0" y1="'+Y(d.price)+'" x2="'+W+'" y2="'+Y(d.price)+'" stroke="#f7f7f7" stroke-dasharray="2,3" opacity="0.7"/>';}s+='<line id="xhair" x1="-10" y1="-10" x2="-10" y2="-10" stroke="#8b5cf6" stroke-width="1" opacity="0.8"/>';s+='<line id="yhair" x1="-10" y1="-10" x2="-10" y2="-10" stroke="#8b5cf6" stroke-width="1" opacity="0.8"/>';svg.innerHTML=g+s;}var chEl=document.getElementById('ch');if(chEl&&!chEl.onmousemove){chEl.onmousemove=function(ev){var r=chEl.getBoundingClientRect();var mx=ev.clientX-r.left,my=ev.clientY-r.top;var xa=chEl.querySelector('#xhair'),ya=chEl.querySelector('#yhair');if(!xa||!ya)return;xa.setAttribute('x1',mx);xa.setAttribute('x2',mx);xa.setAttribute('y1',0);xa.setAttribute('y2',260);ya.setAttribute('x1',0);ya.setAttribute('x2',r.width);ya.setAttribute('y1',my);ya.setAttribute('y2',my);};}
 async function setTF(tf){await fetch('/api/chart?tf='+tf);document.querySelectorAll('.tf').forEach(e=>e.classList.toggle('on',e.dataset.tf===tf));t();} document.getElementById('f25').onclick=()=>{window.__minUSD=25000;document.getElementById('f25').style.background='#8b5cf6';document.getElementById('f100').style.background='rgba(255,255,255,.08)';t();};document.getElementById('f100').onclick=()=>{window.__minUSD=100000;document.getElementById('f100').style.background='#8b5cf6';document.getElementById('f25').style.background='rgba(255,255,255,.08)';t();};setInterval(t,3000);t();
 let RP={on:false,i:0,data:[],timer:null};
 document.getElementById('rplay').onclick=async()=>{
