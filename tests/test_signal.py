@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from engine.primitives import atr, confirmed_swings
-from engine.signal import generate_signal, htf_bias
+from engine.signal import _displacement, _sweep, generate_signal, htf_bias
 from market.binance import Candle
 
 
@@ -42,3 +42,13 @@ def test_rr_invariant_on_any_signal():
             assert (s.side == "long" and s.target > s.entry > s.stop) or (
                 s.side == "short" and s.target < s.entry < s.stop
             )
+
+
+def test_helper_return_shapes():
+    """Regression: _displacement sirf str/None, _sweep sirf dict/None (galat-patch dobara nahi)."""
+    cs = trend(n=60)
+    for i in range(2, 60):
+        d = _displacement(cs, i)
+        assert d is None or isinstance(d, str)
+        w = _sweep(cs, i)
+        assert w is None or (isinstance(w, dict) and "price" in w)

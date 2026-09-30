@@ -51,7 +51,7 @@ def _displacement(candles: list[Candle], i: int) -> str | None:
     if c.close > c.open:
         return "bullish"
     if c.close < c.open:
-        return {"direction": "bearish", "price": highs[-1].price}
+        return "bearish"
     return None
 
 
@@ -63,7 +63,7 @@ def _sweep(candles: list[Candle], i: int) -> str | None:
     if lows and c.low < lows[-1].price and c.close > lows[-1].price and (prev is None or prev.low >= lows[-1].price):
         return {"direction": "bullish", "price": lows[-1].price}
     if highs and c.high > highs[-1].price and c.close < highs[-1].price and (prev is None or prev.high <= highs[-1].price):
-        return "bearish"
+        return {"direction": "bearish", "price": highs[-1].price}
     return None
 
 
