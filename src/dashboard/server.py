@@ -161,8 +161,7 @@ dh+='<div style="background:linear-gradient(90deg,rgba(239,68,68,.25) '+w+'%,tra
 (dp.bids||[]).forEach(x=>{const w=(Math.log(1+x[1])/Math.log(1+(mx||1))*100).toFixed(0);
 dh+='<div style="background:linear-gradient(90deg,rgba(34,197,94,.25) '+w+'%,transparent '+w+'%)">BUY &nbsp;'+x[0]+' ('+x[1]+')</div>';});
 if(dp.asks&&dp.asks.length&&dp.bids&&dp.bids.length){var ba=dp.asks[dp.asks.length-1][0],bb=dp.bids[0][0];dh='<div style="color:#8b5cf6;font-weight:700">SPREAD '+(ba-bb).toFixed(1)+' | MID '+((ba+bb)/2).toFixed(1)+'</div>'+dh;}document.getElementById('dom').innerHTML=dh||'…';
-let ph='';(d.prints||[]).slice().reverse().forEach(x=>{const c=x.sell?'#ef4444':'#22c55e';
-ph+='<div style="color:'+c+'">'+(x.sell?'SELL':'BUY')+' '+x.p+' × '+x.q+' = $'+x.usd+'</div>';});
+
 window.__minUSD=window.__minUSD||25000;let ph='';(d.prints||[]).slice().reverse().forEach(x=>{if(x.usd<window.__minUSD)return;const c=x.sell?'#ef4444':'#22c55e';ph+='<div style="color:'+c+'">'+(x.sell?'SELL':'BUY')+' '+x.p+' \u00d7 '+x.q+' = $'+x.usd+'</div>';});document.getElementById('pr').innerHTML=ph||'is filter me koi trade nahi';draw(d);}catch(e){}}
 function draw(d){drawChart(d);drawEq(d);}
 function drawEq(d){const svg=document.getElementById('eq');const r=d.equity_curve||[];if(!svg||!r.length){if(svg)svg.innerHTML='<text x="10" y="60" fill="#8a8a8a" font-size="13">abhi koi band trade nahi - pehli trade ka intezar</text>';return;}
