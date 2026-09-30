@@ -200,6 +200,75 @@ def generate_signal(candles: list[Candle], index: int, bias: str = "BOTH") -> Si
     return None
 
 
+def find_zones(candles: list[Candle], end: int, lookback: int = 60) -> list[dict]:
+    """Recent FVG/OB zones with status: active (fresh, untouched) | mitigated (touched, alive) | breaker (OB broken, flipped)."""
+    out: list[dict] = []
+    seen: set = set()
+    for ev in range(max(1, end - lookback), end):
+        direction = _displacement(candles, ev)
+        if not direction:
+            continue
+        zone = _fvg_zone(candles, ev, direction) or _ob_zone(candles, ev + 2, direction)
+        if not zone or zone["index"] in seen:
+            continue
+        seen.add(zone["index"])
+        side = "long" if direction == "bullish" else "short"
+        touched = any(
+            _overlaps(candles[i], zone["low"], zone["high"])
+            for i in range(zone["index"] + 1, end + 1)
+        )
+        fresh = zoneIsFresh(candles, zone, end, direction)
+        if fresh:
+            status = "mitigated" if touched else "active"
+        elif zone["kind"] == "OB":
+            status = "breaker"  # OB toot gaya — polarity flip
+            side = "short" if side == "long" else "long"
+        else:
+            continue  # FVG dead
+        out.append({"kind": zone["kind"], "status": status, "side": side,
+                    "high": zone["high"], "low": zone["low"], "index": zone["index"]})
+    return out[-8:]
+
+
+def find_liquidity(candles: list[Candle], end: int) -> list[dict]:
+    """Equal highs/lows (stop-hunt magnets): SSL neeche, BSL upar."""
+    swings = confirmed_swings(candles, end)
+    a = atr(candles, end) or 1.0
+    tol = a * 0.15
+    pools: list[dict] = []
+    for side in ("high", "low"):
+        pts = [x for x in swings if x.side == side][-12:]
+        used: set = set()
+        for i, p1 in enumerate(pts):
+            if i in used:
+                continue
+            group = [p1]
+            for j in range(i + 1, len(pts)):
+                if abs(pts[j].price - p1.price) <= tol:
+                    group.append(pts[j])
+                    used.add(j)
+            if len(group) >= 2:
+                avg = sum(g.price for g in group) / len(group)
+                pools.append({"side": "BSL" if side == "high" else "SSL",
+                              "price": avg, "count": len(group), "index": group[-1].index})
+    return sorted(pools, key=lambda x: x["count"], reverse=True)[:6]
+
+
+def zoneIsFresh(candles: list[Candle], zone: dict, current: int, direction: str) -> bool:
+    """TS zoneIsFresh ka Python copy (dict zone)."""
+    if zone["high"] <= zone["low"]:
+        return False
+    for i in range(zone["index"] + 1, current):
+        c = candles[i]
+        if zone["kind"] == "FVG":
+            bad = c.low <= zone["low"] if direction == "bullish" else c.high >= zone["high"]
+        else:
+            bad = c.close < zone["low"] if direction == "bullish" else c.close > zone["high"]
+        if bad:
+            return False
+    return True
+
+
 if __name__ == "__main__":
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))

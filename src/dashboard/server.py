@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from engine.signal import generate_signal, htf_bias  # noqa: E402
+from engine.signal import find_liquidity, find_zones, generate_signal, htf_bias  # noqa: E402
 from market.binance import fetch_klines  # noqa: E402
 from market.validator import validate_candles  # noqa: E402
 from paper.journal import Engine  # noqa: E402
@@ -110,6 +110,12 @@ def refresh_once() -> None:
                               "zone_high": gs.zone_high, "zone_low": gs.zone_low})
         STATE["chart_signals"] = [m for m in marks if m["k"] >= 0]
         STATE["chart_bias"] = cbias
+        try:
+            STATE["zones"] = find_zones(chart_candles, len(chart_candles) - 1)
+            STATE["pools"] = find_liquidity(chart_candles, len(chart_candles) - 1)
+        except Exception:
+            STATE["zones"] = []
+            STATE["pools"] = []
         STATE["ok"] = True
         STATE["error"] = ""
         STATE["updated_at"] = int(time.time())
@@ -262,6 +268,10 @@ ctx.setLineDash([2,3]);ctx.strokeStyle=cc;ctx.beginPath();ctx.moveTo(0,Y(d.price
 ctx.fillStyle=cc;const pt=String(d.price);ctx.fillRect(VW-58,Y(d.price)-9,56,18);
 ctx.fillStyle=L?'#fff':'#030303';ctx.font='700 11px Inter,Arial';ctx.fillText(pt,VW-56,Y(d.price)+4);}
 // user drawings
+(d.zones||[]).forEach(z=>{const zc=z.status==='breaker'?'rgba(245,179,1,0.25)':(z.status==='mitigated'?(z.side==='long'?'rgba(34,197,94,0.12)':'rgba(239,68,68,0.12)'):'rgba(139,92,246,0.12)');
+ctx.fillStyle=zc;ctx.fillRect(10,Y(z.high),VW-70,Math.max(3,Math.abs(Y(z.low)-Y(z.high))));});
+(d.pools||[]).forEach(o=>{ctx.strokeStyle='#f5b301';ctx.setLineDash([6,4]);ctx.globalAlpha=0.8;ctx.beginPath();ctx.moveTo(10,Y(o.price));ctx.lineTo(VW-60,Y(o.price));ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;
+ctx.fillStyle='#f5b301';ctx.font='700 10px Inter,Arial';ctx.fillText(o.side+' x'+o.count,VW-150,Y(o.price)-5);});
 drawUser(vis,X,Y,VW,VH);
 // crosshair
 const MH=window.__MH;
