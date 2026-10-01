@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from engine.signal import generate_signal, htf_bias  # noqa: E402
+from engine.signal import generate_signal, htf_bias, pullback_pct  # noqa: E402
 from market.binance import Candle, fetch_klines  # noqa: E402
 from market.validator import validate_candles  # noqa: E402
 from paper.journal import Engine  # noqa: E402
@@ -64,7 +64,8 @@ def main() -> None:
         while htf_idx + 1 < len(htf) and htf[htf_idx + 1].time <= ltf[i].time:
             htf_idx += 1
         bias = htf_bias(htf[: htf_idx + 1], htf_idx)
-        sig = generate_signal(ltf[: i + 1], i, bias=bias)
+        pb = pullback_pct(htf[: htf_idx + 1], htf_idx)
+        sig = generate_signal(ltf[: i + 1], i, bias=bias, allow_counter=True, pullback=pb)
         if sig:
             eng.queue(sig, LTF)
         eng.on_candle(LTF, ltf[i], TF_MS[LTF])
@@ -72,8 +73,9 @@ def main() -> None:
             print(f"  ...{i}/{len(ltf)} ({len(eng.closed)} band)", flush=True)
     s = eng.summary()
     rs = [t.r_multiple for t in eng.closed]
+    ct = sum(1 for t in eng.closed if t.setup.startswith("CT-"))
     print("---- RESULT ----")
-    print(f"trades: {s['closed']} | wins: {s['wins']} | win_rate: {s['win_rate']}%")
+    print(f"trades: {s['closed']} (counter-trend: {ct}) | wins: {s['wins']} | win_rate: {s['win_rate']}%")
     print(f"net R: {round(sum(rs), 2)} | avg R: {round(sum(rs) / len(rs), 2) if rs else 0}")
     print(f"equity: ${s['equity']} (start $10000)")
     print(f"time: {round(time.time() - t0, 1)}s")

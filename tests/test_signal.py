@@ -5,7 +5,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from engine.primitives import atr, confirmed_swings
-from engine.signal import _displacement, _sweep, find_liquidity, find_zones, generate_signal, htf_bias
+from engine.signal import (
+    COUNTER_PULLBACK_PCT,
+    _displacement,
+    _sweep,
+    find_liquidity,
+    find_zones,
+    generate_signal,
+    htf_bias,
+    pullback_pct,
+)
 from market.binance import Candle
 
 
@@ -89,3 +98,17 @@ def test_find_liquidity_shapes():
         assert p["side"] in ("SSL", "BSL")
         assert p["count"] >= 2
         assert p["price"] > 0
+
+def test_pullback_pct():
+    cs = [Candle(time=1000 + i * 60000, open=100.0, high=110.0, low=99.0, close=100.0, volume=5.0) for i in range(10)]
+    cs.append(Candle(time=2000000, open=100.0, high=101.0, low=98.0, close=98.0, volume=5.0))
+    pb = pullback_pct(cs, len(cs) - 1, lookback=11)
+    assert abs(pb - (110.0 - 98.0) / 110.0) < 1e-9
+
+def test_counter_trend_flag_default_off():
+    cs = trend(n=80)
+    for i in range(40, 80):
+        s = generate_signal(cs, i)
+        if s:
+            assert s.counter_trend is False
+    assert COUNTER_PULLBACK_PCT == 0.015

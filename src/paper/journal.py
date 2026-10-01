@@ -88,19 +88,34 @@ class Engine:
                 continue  # is candle me pehle hi khul gaya / pehle se khula — ek TF par ek
             entry = _slip(c.open, signal.side)
             risk_cash = self.equity * RISK_PCT
-            dist = abs(entry - signal.stop)
+            if getattr(signal, "counter_trend", False):
+                risk_cash *= 0.5  # counter-trend: aadha risk
+            # signal ke entry se stop/target ka distance nikaalo, actual entry pe apply karo
+            if signal.side == "long":
+                stop_dist = signal.entry - signal.stop
+                target_dist = signal.target - signal.entry
+            else:
+                stop_dist = signal.stop - signal.entry
+                target_dist = signal.entry - signal.target
+            if stop_dist <= 0 or target_dist <= 0:
+                continue  # ganda geometry — skip
+            dist = stop_dist  # risk distance from actual entry
             if dist <= 0:
-                continue  # ganda geometry — crash nahi, skip + note
+                continue
             qty = risk_cash / dist
             if qty * entry > MAX_NOTIONAL_X * self.equity:
-                qty = (MAX_NOTIONAL_X * self.equity) / entry  # fee se bachao: badi position choti karo
+                qty = (MAX_NOTIONAL_X * self.equity) / entry
                 risk_cash = qty * dist
+            actual_stop = entry - stop_dist if signal.side == "long" else entry + stop_dist
+            actual_target = entry + target_dist if signal.side == "long" else entry - target_dist
             self._n += 1
+            ct = getattr(signal, "counter_trend", False)
             self.open_trades.append(
                 Trade(
                     id=f"T{self._n}", timeframe=tf, side=signal.side, signal_time=c.time,
-                    entry=entry, stop=signal.stop, target=signal.target,
-                    quantity=qty, risk_cash=risk_cash, opened_at=c.time, setup=signal.event,
+                    entry=entry, stop=actual_stop, target=actual_target,
+                    quantity=qty, risk_cash=risk_cash, opened_at=c.time,
+                    setup=("CT-" if ct else "") + signal.event,
                 )
             )
 

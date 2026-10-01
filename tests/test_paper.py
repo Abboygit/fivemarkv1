@@ -54,3 +54,12 @@ def test_one_open_per_timeframe():
     e.queue(sig(), "5m")
     e.on_candle("5m", candle(1000, 100, 101, 99.5, 100.5), TF)
     assert len(e.open_trades) == 1  # doosra gira diya
+
+def test_counter_trend_half_risk():
+    from engine.signal import Signal as Sig
+    e = Engine()
+    s = Sig(side='long', entry=100.0, stop=99.0, target=102.5, rr=2.5, reason='CT-t', event='fvg_retrace', index=0, confidence=0.6, counter_trend=True)
+    e.queue(s, '5m')
+    e.on_candle('5m', candle(1000, 100, 101, 99.5, 100.5), TF)
+    assert len(e.open_trades) == 1
+    assert abs(e.open_trades[0].risk_cash - 50.0) < 1.0  # $10000 x 1% x 0.5

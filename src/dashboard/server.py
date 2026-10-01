@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from engine.signal import find_liquidity, find_zones, generate_signal, htf_bias  # noqa: E402
+from engine.signal import find_liquidity, find_zones, generate_signal, htf_bias, pullback_pct  # noqa: E402
 from market.binance import fetch_klines  # noqa: E402
 from market.validator import validate_candles  # noqa: E402
 from paper.journal import Engine  # noqa: E402
@@ -53,19 +53,29 @@ def refresh_once() -> None:
             if tf in (LTF, HTF) and not v.valid:
                 raise RuntimeError(f"{tf}: ganda data ({'; '.join(v.errors[:2])})")
         bias = htf_bias(htf, len(htf) - 1)
+        if bias == "WAIT":  # multi-TF fallback: 1h chup to 30m se rukh lo
+            try:
+                mtf = fetch_klines(SYMBOL, "30m", 120)[:-1]
+                bias = htf_bias(mtf, len(mtf) - 1)
+                if bias != "WAIT":
+                    _note("rukh 30m fallback se")
+            except Exception:
+                pass
         STATE["bias"] = bias
         STATE["price"] = ltf[-1].close
         if LAST_CLOSED.get(LTF) != ltf[-1].time:  # nayi band candle
             LAST_CLOSED[LTF] = ltf[-1].time
-            sig = generate_signal(ltf, len(ltf) - 1, bias=bias)
+            pb = pullback_pct(htf, len(htf) - 1)
+            sig = generate_signal(ltf, len(ltf) - 1, bias=bias, allow_counter=True, pullback=pb)
             if sig:
                 ENGINE.queue(sig, LTF)
                 STATE["signal"] = {"side": sig.side, "entry": sig.entry, "stop": sig.stop,
                                    "target": sig.target, "rr": round(sig.rr, 2),
                                    "event": sig.event, "reason": sig.reason,
                                    "zone_kind": sig.zone_kind, "zone_high": sig.zone_high,
-                                   "zone_low": sig.zone_low, "sweep_price": sig.sweep_price}
-                _note(f"signal {sig.side} {sig.event} RR {sig.rr:.1f}")
+                                   "zone_low": sig.zone_low, "sweep_price": sig.sweep_price,
+                                   "counter": sig.counter_trend}
+                _note(f"signal {sig.side} {'CT-' if sig.counter_trend else ''}{sig.event} RR {sig.rr:.1f}")
             else:
                 STATE["signal"] = None
                 _note(f"scan: rukh {bias}, koi entry nahi")
