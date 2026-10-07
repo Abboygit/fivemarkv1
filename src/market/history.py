@@ -16,7 +16,7 @@ import requests
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 BASE_URL = "https://fapi.binance.com"
-SYMBOL = "BTCUSDT"
+DEFAULT_SYMBOL = "BTCUSDT"
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"  # project/data (pehle src/data me gaya tha — fix)
 DATA_DIR.mkdir(exist_ok=True)
 
@@ -26,12 +26,12 @@ TF_MS = {"1m": 60_000, "3m": 180_000, "5m": 300_000, "15m": 900_000, "30m": 1_80
          "8h": 28_800_000, "12h": 43_200_000, "1d": 86_400_000}
 
 
-def _file(tf: str) -> Path:
-    return DATA_DIR / f"BTCUSDT_{tf}.json"
+def _file(symbol: str, tf: str) -> Path:
+    return DATA_DIR / f"{symbol}_{tf}.json"
 
 
-def _load(tf: str) -> list:
-    f = _file(tf)
+def _load(symbol: str, tf: str) -> list:
+    f = _file(symbol, tf)
     if f.exists():
         try:
             return json.loads(f.read_text())
@@ -40,27 +40,30 @@ def _load(tf: str) -> list:
     return []
 
 
-def _save(tf: str, rows: list) -> None:
-    tmp = _file(tf).with_suffix(".tmp")
+def _save(symbol: str, tf: str, rows: list) -> None:
+    tmp = _file(symbol, tf).with_suffix(".tmp")
     tmp.write_text(json.dumps(rows))
-    tmp.replace(_file(tf))
+    tmp.replace(_file(symbol, tf))
 
 
-def download(tf: str) -> None:
-    have = _load(tf)
-    have_times = {r[0] for r in have} if have else set()
-    since = (int(time.time() * 1000) - YEAR_MS) if not have else have[-1][0] + TF_MS[tf]
-    print(f"[{tf}] have={len(have)}, downloading...", flush=True)
-    end = (have[0][0] - 1) if have else None  # resume: sab se purani se peeche jao
+def download(symbol: str, tf: str) -> None:
+    have = _load(symbol, tf)
+    print(f"[{symbol} {tf}] have={len(have)}, downloading...", flush=True)
+    if have:
+        _forward_fill(symbol, tf, have)
+        return
+    have_times: set = set()
+    since = int(time.time() * 1000) - YEAR_MS
+    end = None  # naya download: peeche se shuru
     new = 0
     batches = 0
     while True:
-        params = {"symbol": SYMBOL, "interval": tf, "limit": 1000}
+        params = {"symbol": symbol, "interval": tf, "limit": 1000}
         if end:
             params["endTime"] = end
         r = requests.get(f"{BASE_URL}/fapi/v1/klines", params=params, timeout=20)
         if r.status_code != 200:
-            print(f"[{tf}] HTTP {r.status_code}, ruk kar retry...")
+            print(f"[{symbol} {tf}] HTTP {r.status_code}, ruk kar retry...")
             time.sleep(10)
             continue
         batch = r.json()
@@ -74,20 +77,52 @@ def download(tf: str) -> None:
         end = batch[0][0] - 1
         if batches % 15 == 0:  # beech me save — tootne par dobara wahin se
             have.sort(key=lambda x: x[0])
-            _save(tf, have)
-            print(f"[{tf}] ...{len(have)} save (chal raha)", flush=True)
+            _save(symbol, tf, have)
+            print(f"[{symbol} {tf}] ...{len(have)} save (chal raha)", flush=True)
         if batch[0][0] < since or len(batch) < 1000:
             break
         time.sleep(0.4)  # Binance weight limit se bachao
     have.sort(key=lambda x: x[0])
-    _save(tf, have)
-    print(f"[{tf}] done: total={len(have)} (nayi {new})", flush=True)
+    _save(symbol, tf, have)
+    print(f"[{symbol} {tf}] done: total={len(have)} (nayi {new})", flush=True)
+
+
+def _forward_fill(symbol: str, tf: str, have: list) -> None:
+    """Purani file ko aage (ab tak) bharo. Aakhri (chalti) candle dobara likho."""
+    by_time = {r[0]: r for r in have}
+    since = have[-1][0]  # aakhri wali dobara (chalti thi, ab band)
+    new = 0
+    while True:
+        params = {"symbol": symbol, "interval": tf, "limit": 1000, "startTime": since}
+        r = requests.get(f"{BASE_URL}/fapi/v1/klines", params=params, timeout=20)
+        if r.status_code != 200:
+            print(f"[{symbol} {tf}] HTTP {r.status_code}, ruk kar retry...")
+            time.sleep(10)
+            continue
+        batch = r.json()
+        if not batch:
+            break
+        fresh = [row for row in batch if row[0] >= since and row[0] not in by_time]
+        for row in fresh:
+            by_time[row[0]] = row
+        new += len(fresh)
+        if len(batch) < 1000:
+            break
+        since = batch[-1][0] + 1
+        time.sleep(0.4)  # Binance weight limit se bachao
+    rows = sorted(by_time.values(), key=lambda x: x[0])
+    _save(symbol, tf, rows)
+    print(f"[{symbol} {tf}] forward fill done: total={len(rows)} (nayi {new})", flush=True)
 
 
 if __name__ == "__main__":
-    which = sys.argv[1:] or list(TF_MS)
-    for tf in which:
+    args = sys.argv[1:] or [f"{DEFAULT_SYMBOL}:{tf}" for tf in TF_MS]
+    for arg in args:
+        if ":" not in arg:
+            print(f"invalid arg: {arg}, use SYMBOL:TF format")
+            continue
+        symbol, tf = arg.split(":", 1)
         if tf not in TF_MS:
             print(f"unknown TF: {tf}")
             continue
-        download(tf)
+        download(symbol, tf)

@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data (auto-downloaded, not committed)
+data/
+*.json
+!requirements.txt
+
+# Logs
+*.log
+server.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Temp
+*.tmp
+*.temp
+*.bak
+
+# State
+state.json

@@ -18,8 +18,6 @@ PD_BUFFER = 0.08
 LOOKBACK = 18
 MIN_STOP_ATR_MULT = 1.5
 MAX_STOP_ATR_MULT = 5.0
-COUNTER_PULLBACK_PCT = 0.015  # 1.5% pullback se counter-trend mode
-COUNTER_RISK_MULT = 0.5  # counter-trend par aadha risk
 
 
 @dataclass
@@ -38,7 +36,6 @@ class Signal:
     zone_low: float = 0.0
     sweep_price: float = 0.0  # sweep point (chart dot ke liye)
     event_index: int = 0  # displacement wali candle (chart marker ke liye)
-    counter_trend: bool = False  # HTF ke khilaf trade (aadha risk)
 
 
 def _overlaps(c: Candle, low: float, high: float) -> bool:
@@ -183,10 +180,8 @@ def pullback_pct(candles: list[Candle], index: int, lookback: int = 60) -> float
     return (hi - candles[index].close) / hi
 
 
-def generate_signal(candles: list[Candle], index: int, bias: str = "BOTH",
-                    allow_counter: bool = False, pullback: float = 0.0) -> Signal | None:
-    """LTF signal. bias=UP/DOWN/WAIT (HTF gate) ya BOTH (gate bandh, test ke liye).
-    allow_counter=True + gehra pullback → HTF ke khilaf signal (counter_trend=True, aadha risk)."""
+def generate_signal(candles: list[Candle], index: int, bias: str = "BOTH") -> Signal | None:
+    """LTF signal. bias=UP/DOWN/WAIT (HTF gate) ya BOTH (gate bandh, test ke liye)."""
     if index < 30 or index >= len(candles):
         return None
     cur = candles[index]
@@ -198,21 +193,16 @@ def generate_signal(candles: list[Candle], index: int, bias: str = "BOTH",
         struct = _mss_or_bos(candles, ev, direction)
         if not sweep and not struct:
             continue
-        zone = _fvg_zone(candles, ev, direction) or _ob_zone(candles, index, direction)
+        zone = _fvg_zone(candles, ev, direction) or _ob_zone(candles, ev, direction)
         if not zone or zone["index"] >= index:
             continue
         if not _overlaps(cur, zone["low"], zone["high"]):
             continue
         side = "long" if direction == "bullish" else "short"
-        counter = False
         if bias == "UP" and side != "long":
-            if not (allow_counter and pullback >= COUNTER_PULLBACK_PCT):
-                continue  # HTF gate: bada UP, chota sell ban
-            counter = True  # gehra pullback — counter-trend, aadha risk
+            continue  # HTF gate: bada UP, chota sell ban
         if bias == "DOWN" and side != "short":
-            if not (allow_counter and pullback >= COUNTER_PULLBACK_PCT):
-                continue
-            counter = True
+            continue
         if bias == "WAIT":
             return None
         start = max(0, index - 59)
@@ -233,7 +223,7 @@ def generate_signal(candles: list[Candle], index: int, bias: str = "BOTH",
             targets = sorted([s.price for s in swings if s.side == "low" and s.price < entry])
         if not stops or not targets:
             continue
-        stop, target = stops[0], targets[0]
+        stop = stops[0]
         dist = abs(entry - stop)
         if not (entry * 0.0005 <= dist <= entry * 0.03):
             continue
@@ -241,21 +231,22 @@ def generate_signal(candles: list[Candle], index: int, bias: str = "BOTH",
         atr_val = atr(candles, index)
         if dist < atr_val * MIN_STOP_ATR_MULT:
             continue
-        if abs(target - entry) < dist * RISK_REWARD:
+        # Find first target that meets RR requirement
+        target = None
+        for t in targets:
+            if abs(t - entry) >= dist * RISK_REWARD:
+                target = t
+                break
+        if target is None:
             continue
         conf = 0.2 * bool(sweep) + 0.25 * bool(struct) + 0.25 + 0.2 + 0.1
-        if counter:
-            conf = round(conf * 0.8, 2)  # counter-trend: bharosa thoda kam
-            reason = f"CT-{'sweep+' if sweep else ''}{'mss/bos+' if struct else ''}displacement+{zone['kind']}+{pd}"
-        else:
-            reason = f"{'sweep+' if sweep else ''}{'mss/bos+' if struct else ''}displacement+{zone['kind']}+{pd}"
+        reason = f"{'sweep+' if sweep else ''}{'mss/bos+' if struct else ''}displacement+{zone['kind']}+{pd}"
         return Signal(
             side=side, entry=entry, stop=stop, target=target,
             rr=abs(target - entry) / dist, reason=reason,
             event=f"{zone['kind'].lower()}_retrace", index=index, confidence=round(conf, 2),
             zone_kind=zone["kind"], zone_high=zone["high"], zone_low=zone["low"],
             sweep_price=sweep["price"] if sweep else 0.0, event_index=ev,
-            counter_trend=counter,
         )
     return None
 
