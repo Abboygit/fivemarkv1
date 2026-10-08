@@ -10,13 +10,13 @@ Mapping: sab se bada j jahan htf[j].time <= ltf[i].time (incremental pointer).
 import sys
 import json
 from pathlib import Path
-sys.path.insert(0, r'C:\Users\MY PC\Documents\Default Project\Five mark v1\deploy\src')
+sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
 from market.binance import Candle
 from engine.signal import generate_signal, htf_bias, pullback_pct
 from paper.journal import Engine
 
-DATA_DIR = Path(r'C:\Users\MY PC\Documents\Default Project\Five mark v1\data')
+DATA_DIR = Path(__file__).resolve().parents[1] / "data"  # repo-root/data (portable: Win+VPS)
 N_5M = 100000  # ~1 lakh candles ~ 1 year
 
 

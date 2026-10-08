@@ -8,20 +8,20 @@ import json
 import time
 from pathlib import Path
 
-sys.path.insert(0, r'C:\Users\MY PC\Documents\Default Project\Five mark v1\deploy\src')
+sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
 from market.binance import Candle
 from engine.signal import htf_bias, pullback_pct, generate_signal
 from paper.journal import Engine
 
-DATA_DIR = Path(r'C:\Users\MY PC\Documents\Default Project\Five mark v1\data')
+DATA_DIR = Path(__file__).resolve().parents[1] / "data"  # repo-root/data (portable: Win+VPS)
 
 SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "ARBUSDT"]
 N_5M = 100000
 
 def load_candles(symbol, tf, limit):
     try:
-        rows = json.loads((Path(r'C:\Users\MY PC\Documents\Default Project\Five mark v1\data') / f'{symbol}_{tf}.json').read_text())
+        rows = json.loads((DATA_DIR / f'{symbol}_{tf}.json').read_text())
     except:
         return []
     out = []
