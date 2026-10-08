@@ -189,7 +189,7 @@ async def run_bot_polling(config: TelegramConfig):
         log.error("python-telegram-bot not installed: pip install python-telegram-bot")
         return
 
-    from telegram.ext import Application, CommandHandler, ContextTypes
+    from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
     notifier = TelegramNotifier(config)
     await notifier.start()
@@ -200,7 +200,6 @@ async def run_bot_polling(config: TelegramConfig):
         await notifier.notify_last_trade_summary()
 
     async def status_cmd(update, context: ContextTypes.DEFAULT_TYPE):
-        # You'd hook engine here
         await update.message.reply_text("Use /last for last trade.")
 
     async def dashboard_kw(update, context: ContextTypes.DEFAULT_TYPE):
@@ -216,14 +215,22 @@ async def run_bot_polling(config: TelegramConfig):
             await update.message.reply_text(
                 "Dashboard link abhi taiyaar nahi — tunnel start ho raha hai, 1 min baad 'dashboard' dobara bhejo.")
 
-    from telegram.ext import MessageHandler, filters
     app.add_handler(CommandHandler("last", last_cmd))
     app.add_handler(CommandHandler("status", status_cmd))
     app.add_handler(CommandHandler("dashboard", lambda u, c: dashboard_kw(u, c)))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, dashboard_kw))
 
     log.info("Telegram polling started")
-    await app.run_polling()
+    # Manual polling loop to avoid 'Updater.start_polling never awaited' warning
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling()
+    try:
+        await asyncio.Event().wait()  # run forever
+    finally:
+        await app.updater.stop()
+        await app.stop()
+        await app.shutdown()
 
 
 # Sync wrapper for journal.py integration
