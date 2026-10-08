@@ -56,8 +56,12 @@ class TelegramNotifier:
             self.config.enabled = False
 
     async def send(self, text: str):
-        if not self.config.enabled or not self.bot:
+        if not self.config.enabled:
             return
+        if self.bot is None:  # lazy init — start() ka intezar nahi (journal hooks seedha send karte hain)
+            if not TELEGRAM_AVAILABLE or not self.config.token:
+                return
+            self.bot = Bot(token=self.config.token)
         try:
             await self.bot.send_message(
                 chat_id=self.config.chat_id,
@@ -248,6 +252,13 @@ def notify_status_sync(equity: float, realized: float, open_trades: int,
         asyncio.run(_async_notify(notifier.notify_engine_status(
             equity, realized, open_trades, win_rate, avg_r
         )))
+
+
+def notify_text_sync(text: str):
+    """Seedha text bhejo (startup ping, heartbeat). No-op jab disabled."""
+    notifier = get_notifier()
+    if notifier.config.enabled:
+        asyncio.run(_async_notify(notifier.send(text)))
 
 if __name__ == "__main__":
     # Test: python -m src.paper.telegram_bot
