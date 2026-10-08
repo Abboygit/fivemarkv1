@@ -203,8 +203,24 @@ async def run_bot_polling(config: TelegramConfig):
         # You'd hook engine here
         await update.message.reply_text("Use /last for last trade.")
 
+    async def dashboard_kw(update, context: ContextTypes.DEFAULT_TYPE):
+        """'dashboard' likhne par public link do (tunnel URL file se taaza)."""
+        try:
+            from dashboard.tunnel import get_public_url
+        except Exception:
+            get_public_url = lambda: ""
+        url = get_public_url()
+        if url:
+            await update.message.reply_text(f"📊 Dashboard: {url}")
+        else:
+            await update.message.reply_text(
+                "Dashboard link abhi taiyaar nahi — tunnel start ho raha hai, 1 min baad 'dashboard' dobara bhejo.")
+
+    from telegram.ext import MessageHandler, filters
     app.add_handler(CommandHandler("last", last_cmd))
     app.add_handler(CommandHandler("status", status_cmd))
+    app.add_handler(CommandHandler("dashboard", lambda u, c: dashboard_kw(u, c)))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, dashboard_kw))
 
     log.info("Telegram polling started")
     await app.run_polling()
